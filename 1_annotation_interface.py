@@ -1,6 +1,6 @@
 import os
 import numpy as np
-from tifffile import imread, imwrite
+from tifffile import imread, imwrite, TiffFile
 import napari
 
 # Rewrite this function (and instructions!) as needed to load your data.
@@ -13,6 +13,13 @@ def load():
     input_filename = './1_to_be_annotated/annotate_me.tif'
     assert os.path.exists(input_filename), "Please create %s"%input_filename
     data = imread(input_filename)
+    if len(data.shape) in (2, 3, 4): # Careful not to confuse c with t or z!
+        with TiffFile(input_filename) as tif:
+            md = tif.imagej_metadata
+            n_c = md.get('channels', 1)
+            n_z = md.get('slices', 1)
+            n_t = md.get('frames', 1)
+            data = data.reshape(n_t, n_z, n_c, data.shape[-2], data.shape[-1])
     print('annotating data with shape', data.shape, 'and dtype', data.dtype)
     assert len(data.shape) == 5, instructions
     new_shape = list(data.shape)
@@ -29,8 +36,10 @@ def load():
             machine_labels_filename = (
                 './3_machine_annotations/t%06i_z%06i.tif'%(t, z))
             if os.path.exists(machine_labels_filename):
-                machine_labels = imread(machine_labels_filename)[-1, :, :]
-                data_with_labels[t, z, -1, :, :] = human_labels
+                machine_labels = imread(machine_labels_filename)
+                # Convert from softmax 1-hot to labels:
+                machine_labels = 1 + np.argmax(machine_labels, axis=0)
+                data_with_labels[t, z, -1, :, :] = machine_labels
     return data_with_labels
 
 with napari.gui_qt():
@@ -56,7 +65,7 @@ with napari.gui_qt():
     @viewer.bind_key('s')
     def save_layer(viewer):
         t, z = viewer.dims.point[0], viewer.dims.point[1]
-        x = data_with_labels[t, z, :, :, :]
+        x = data_with_labels[t, z, :-1, :, :]
         filename = './2_human_annotations/t%06i_z%06i.tif'%(t, z)
         print("Saving", x.shape, x.dtype, "as", filename)
         ranges = []

@@ -10,12 +10,16 @@ import torch.nn.functional as F
 
 assert torch.cuda.is_available(), 'No GPU available'
 
-num_classes = 4 # Including 0, the "unannotated" class
-assert num_classes < 2**8 # Bro you don't need more
+num_input_channels = 3
+num_labels = 4 # Including 0, the "unannotated" label
+assert num_labels < 2**8 # Bro you don't need more
 model = torchvision.models.segmentation.fcn_resnet50(
     pretrained=False,
-    num_classes=num_classes - 1, # Only guess the annotated classes
-    ).cuda()
+    num_classes=num_labels - 1) # Only guess the annotated classes
+model.backbone.conv1 = nn.Conv2d( # Input probably isn't RGB
+    num_input_channels, # Leave the other parameters unchanged
+    64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
+model = model.cuda()
 
 optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, amsgrad=True)
 
@@ -40,29 +44,28 @@ def loss_fn(output, target, num_annotated_pixels):
 img_dir = './2_human_annotations'
 
 def load_data(img_name):
-    assert len(os.listdir(img_dir))>0, 'no human-annotated images found'
+    assert len(os.listdir(img_dir)) > 0, 'no human-annotated images found'
     img_path = os.path.join(img_dir, img_name)
     img = tifffile.imread(img_path)
-    assert img.shape[0] == 2 and len(img.shape) == 3 # 2-channel, 2D images
-    # First channel holds the raw image. Match shape and dtype to what
-    # torch expects: (batch_size, 3, y, x) and float32
-    input_ = torch.cuda.FloatTensor(
-        img[np.newaxis, 0:1, ...].astype('float32'))
-    input_ = input_.repeat(1, 3, 1, 1) # Repeat grayscale 3x to get RGB
+    assert img.shape[0] == 1 + num_input_channels
+    assert len(img.shape) == 3
+    # First channels hold the raw images. Match shape and dtype to what
+    # torch expects: (batch_size, num_input_channels, y, x) and float32
+    input_ = torch.cuda.FloatTensor(img[np.newaxis, :-1, ...].astype('float32'))
     input_.requires_grad = True
-    # Second channel holds our annotations of the raw image. Annotation
-    # values are ints ranging from 0 to num_classes; each different
-    # annotation value signals a different class. We unpack these into a
+    # Last channel holds our annotations of the raw image. Annotation
+    # values are ints ranging from 0 to num_labels; each different
+    # annotation value signals a different label. We unpack these into a
     # "1-hot" representation called 'target'.
-    assert 0 <= img[1, :, :].min() and img[1, :, :].max() < num_classes
-    num_annotated_pixels = np.count_nonzero(img[1, :, :])
+    labels = img[np.newaxis, -1:, :, :].astype('uint8')
+    assert labels.max() < num_labels
+    num_annotated_pixels = np.count_nonzero(labels)
     # Might as well pass a small dtype to the GPU, but the on-GPU dtype
     # has to be Long to work with .scatter_:
-    labels = torch.cuda.LongTensor(
-        img[np.newaxis, 1:2, :, :].astype('uint8'))
+    labels = torch.cuda.LongTensor(labels)
     # An empty Boolean array to be filled with our "1-hot" representation:
     target = torch.cuda.BoolTensor(
-        1, num_classes, img.shape[1], img.shape[2]
+        1, num_labels, img.shape[1], img.shape[2]
         ).zero_() # Initialization to zero is not automatic!
     # Copy each class into its own boolean image:
     target.scatter_(dim=1, index=labels.data, value=True)
