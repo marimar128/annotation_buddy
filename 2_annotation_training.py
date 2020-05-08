@@ -10,18 +10,21 @@ import torch.nn.functional as F
 
 assert torch.cuda.is_available(), 'No GPU available'
 
-num_input_channels = 3
+num_input_channels = 1
 num_labels = 4 # Including 0, the "unannotated" label
+label_weights = torch.cuda.FloatTensor([1, 1, 1])
+assert len(label_weights) == num_labels - 1 # No weight for "unannotated"
 assert num_labels < 2**8 # Bro you don't need more
 model = torchvision.models.segmentation.fcn_resnet50(
-    pretrained=False,
-    num_classes=num_labels - 1) # Only guess the annotated classes
+    num_classes=num_labels - 1, # Only guess the annotated classes
+    pretrained=False, pretrained_backbone=True)
 model.backbone.conv1 = nn.Conv2d( # Input probably isn't RGB
     num_input_channels, # Leave the other parameters unchanged
     64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
 model = model.cuda()
 
-optimizer = torch.optim.Adam(model.parameters(), lr=1e-3, amsgrad=True)
+optimizer = torch.optim.AdamW(model.parameters(), lr=1e-2, amsgrad=True,
+                              weight_decay=1e-3)
 
 saved_state_filename = './saved_model.pt'
 backup_saved_state_filename = './backup_saved_model.pt'
@@ -39,7 +42,8 @@ def loss_fn(output, target, num_annotated_pixels):
     output, target = output['out'], target[:, 1:, :, :]
     assert output.shape == target.shape
     probs = F.softmax(output, dim=1)
-    return torch.sum(probs * target / -num_annotated_pixels)
+    probs = probs * label_weights.reshape(1, probs.shape[1], 1, 1)
+    return torch.sum(probs * target / -(num_annotated_pixels + 1e-9))
 
 img_dir = './2_human_annotations'
 

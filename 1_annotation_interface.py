@@ -77,6 +77,8 @@ with napari.gui_qt():
     def reload(viewer):
         print('Reloading human and machine annotations')
         data_with_labels[:] = load()
+        viewer.layers['Human labels'].refresh()
+        viewer.layers['Machine labels'].refresh()
         
 
 
