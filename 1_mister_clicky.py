@@ -107,25 +107,23 @@ with napari.gui_qt():
         for ch in x: # Autoscale each channel
             ranges.extend((ch.min(), ch.max()))
         imwrite(filename, x, imagej=True, ijmetadata={'Ranges': tuple(ranges)})
-        # If random forest-annotated labels exist for this slice, force
-        # them to agree with the human labels, and resave them to disk.
+        # Also force the random-forest annotated labels to agree with
+        # the human labels, and resave them to disk.
         filename = rf_labels_dir / ('t%06i_z%06i.tif'%(t, z))
-        if filename.is_file():
-            # Force agreement on screen
-            human_labels = data_with_labels[t, z, -3, :, :]
-            rf_labels = data_with_labels[t, z, -2, :, :]
-            overruled = (human_labels != 0)
-            rf_labels[overruled] = human_labels[overruled]
-            viewer.layers['Rand. forest labels'].refresh()
-            # Force agreement on disk
-            data_and_rf_slices = (*range(data_with_labels.shape[2] - 3), -2)
-            x = data_with_labels[t, z, data_and_rf_slices, :, :]
-            print("Saving", x.shape, x.dtype, "as", filename)
-            ranges = []
-            for ch in x: # Autoscale each channel
-                ranges.extend((ch.min(), ch.max()))
-            imwrite(filename, x,
-                    imagej=True, ijmetadata={'Ranges': tuple(ranges)})
+        # Agreement on screen
+        human_labels = data_with_labels[t, z, -3, :, :]
+        rf_labels = data_with_labels[t, z, -2, :, :]
+        overruled = (human_labels != 0)
+        rf_labels[overruled] = human_labels[overruled]
+        viewer.layers['Rand. forest labels'].refresh()
+        # Agreement on disk
+        data_and_rf_slices = (*range(data_with_labels.shape[2] - 3), -2)
+        x = data_with_labels[t, z, data_and_rf_slices, :, :]
+        print("Saving", x.shape, x.dtype, "as", filename)
+        ranges = []
+        for ch in x: # Autoscale each channel
+            ranges.extend((ch.min(), ch.max()))
+        imwrite(filename, x, imagej=True, ijmetadata={'Ranges': tuple(ranges)})
 
     @viewer.bind_key('r')
     def reload(viewer):
