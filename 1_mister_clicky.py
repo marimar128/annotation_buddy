@@ -85,7 +85,6 @@ with napari.gui_qt():
                       name='Rand. forest labels')
     viewer.layers['Rand. forest labels'].opacity = 0.25
     viewer.layers['Rand. forest labels'].visible = False
-    viewer.layers['Rand. forest labels'].editable = False
     viewer.add_labels(data_with_labels[:, :, -3, :, :], name='Human labels')
     viewer.layers['Human labels'].opacity = 0.25
     viewer.layers['Human labels'].selected = True
