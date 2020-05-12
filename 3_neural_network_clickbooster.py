@@ -1,5 +1,6 @@
 # Python standard library
 from pathlib import Path
+from random import shuffle
 # Third-party libraries, installable via pip
 import numpy as np
 from tifffile import imread, imwrite
@@ -38,7 +39,7 @@ if save_debug_imgs:
 print("Initialzing model...", end='')
 model = torchvision.models.segmentation.fcn_resnet50(
     num_classes=max_label, # Only guess the annotated pixels
-    pretrained=False, pretrained_backbone=False)
+    pretrained=False, pretrained_backbone=True)
 model.backbone.conv1 = nn.Conv2d( # fcn_resnet50 assumes RGB input
     num_input_channels, # The first layer should be N-channel, not RGB
     64, kernel_size=(7, 7), stride=(2, 2), padding=(3, 3), bias=False)
@@ -106,6 +107,7 @@ def save_output(output, img_path):
 
 for epoch in range(starting_epoch, 100000): # Basically forever
     img_paths = [x for x in input_dir.iterdir() if x.suffix == '.tif']
+    shuffle(img_paths)
     loss_list = []
     print("\nEpoch", epoch)
     for i, img_path in enumerate(img_paths):
