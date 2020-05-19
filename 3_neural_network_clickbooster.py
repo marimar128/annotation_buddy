@@ -46,15 +46,23 @@ model.backbone.conv1 = nn.Conv2d( # fcn_resnet50 assumes RGB input
 model = model.cuda()
 print(" done.")
 
-# NB this learning rate and weight decay might be hilariously wrong. Be careful!
+# NB learning rate 1e-3 and weight decay 1e-4 might be hilariously
+# wrong. Be careful! Expect to tune both of these parameters by 1-2
+# orders of magnitude to find a good balance of obedience and
+# independence. There's probably a more intelligent approach.
 optimizer = torch.optim.AdamW(
-    model.parameters(), lr=1e-2, weight_decay=1e-3, amsgrad=True)
+    model.parameters(), lr=1e-3, weight_decay=1e-4, amsgrad=True)
 
 # Pick up where we left off, if we've already done some training:
 starting_epoch = 0
 if saved_state_path.is_file():
     print("Loading saved model and optimizer state...", end='')
-    checkpoint = torch.load(saved_state_path)
+    try:
+        checkpoint = torch.load(saved_state_path)
+    except RuntimeError:
+        print("\nSaved state may be corrupted; loading backup...", end='')
+        checkpoint = torch.load(saved_state_path.parent /
+                                (saved_state_path.stem + '_backup.pt'))
     model.load_state_dict(checkpoint['model_state_dict'])
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     starting_epoch = 1 + checkpoint['epoch']
@@ -107,7 +115,6 @@ def save_output(output, img_path):
 
 for epoch in range(starting_epoch, 100000): # Basically forever
     img_paths = [x for x in input_dir.iterdir() if x.suffix == '.tif']
-    shuffle(img_paths)
     loss_list = []
     print("\nEpoch", epoch)
     for i, img_path in enumerate(img_paths):
@@ -115,13 +122,14 @@ for epoch in range(starting_epoch, 100000): # Basically forever
         input_, target = load_data(img_path)
         output = model(input_)
         loss = loss_fn(output, target)
-        loss.backward()
-        optimizer.step()
-        optimizer.zero_grad()
+        if loss.detach().item() != 0: # Don't bother if there's no annotations
+            loss.backward()
+            optimizer.step()
+            optimizer.zero_grad()
         # Outputs for inspection
         loss_list.append(loss.detach().item())
         save_output(output, output_dir / img_path.name)
-        if save_debug_imgs and i == 0:
+        if save_debug_imgs and i == (len(img_paths) - 1):
             save_output(output,
                         other_output_dir / ('e%06i_'%epoch + img_path.name))
     print('\nLosses:')
