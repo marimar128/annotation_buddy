@@ -9,9 +9,9 @@ import napari
 # Set input/output behavior
 data_dir = Path.cwd() # The current working directory
 data_filename = data_dir / 'annotate_me.tif'
-human_labels_dir = Path('./1_human_annotations')
-rf_labels_dir = Path('./2_random_forest_annotations')
-nn_labels_dir = Path('./3_neural_network_annotations')
+human_labels_dir = data_dir / '1_human_annotations'
+rf_labels_dir = data_dir / '2_random_forest_annotations'
+nn_labels_dir = data_dir / '3_neural_network_annotations'
 
 # Sanity checks on input/output
 instructions = """\n
@@ -30,10 +30,10 @@ def load():
         # Read the tif ImageJ metadata to figure out which dimension is which:
         with TiffFile(data_filename) as tif:
             md = tif.imagej_metadata
-            n_c = md.get('channels', 1)
-            n_z = md.get('slices', 1)
-            n_t = md.get('frames', 1)
-            data = data.reshape(n_t, n_z, n_c, data.shape[-2], data.shape[-1])
+        n_c = md.get('channels', 1)
+        n_z = md.get('slices', 1)
+        n_t = md.get('frames', 1)
+        data = data.reshape(n_t, n_z, n_c, data.shape[-2], data.shape[-1])
     print('Annotating data with shape', data.shape, 'and dtype', data.dtype)
     assert len(data.shape) == 5, instructions
     new_shape = list(data.shape)
@@ -96,7 +96,7 @@ with napari.gui_qt():
     viewer.dims.set_axis_label(1, 'z')
     
     @viewer.bind_key('s')
-    def save_layer(viewer):
+    def save_slice(viewer):
         t, z = viewer.dims.point[0], viewer.dims.point[1]
         # Save the human-annotated labels from the current slice
         filename = human_labels_dir / ('t%06i_z%06i.tif'%(t, z))
@@ -124,6 +124,38 @@ with napari.gui_qt():
             ranges.extend((ch.min(), ch.max()))
         imwrite(filename, x, imagej=True, ijmetadata={'Ranges': tuple(ranges)})
 
+    @viewer.bind_key('a')
+    def save_all_slices(viewer):
+        for t in range(data_with_labels.shape[0]):
+            for z in range(data_with_labels.shape[1]):
+                # Save the human-annotated labels from all slices
+                filename = human_labels_dir / ('t%06i_z%06i.tif'%(t, z))
+                x = data_with_labels[t, z, :-2, :, :]
+                print("Saving", x.shape, x.dtype, "as", filename)
+                ranges = []
+                for ch in x: # Autoscale each channel
+                    ranges.extend((ch.min(), ch.max()))
+                imwrite(filename, x, imagej=True,
+                        ijmetadata={'Ranges': tuple(ranges)})
+                # Also force the random-forest annotated labels to agree with
+                # the human labels, and resave them to disk.
+                filename = rf_labels_dir / ('t%06i_z%06i.tif'%(t, z))
+                # Agreement on screen
+                human_labels = data_with_labels[t, z, -3, :, :]
+                rf_labels = data_with_labels[t, z, -2, :, :]
+                overruled = (human_labels != 0)
+                rf_labels[overruled] = human_labels[overruled]
+                viewer.layers['Rand. forest labels'].refresh()
+                # Agreement on disk
+                data_and_rf_slices = (*range(data_with_labels.shape[2] - 3), -2)
+                x = data_with_labels[t, z, data_and_rf_slices, :, :]
+                print("Saving", x.shape, x.dtype, "as", filename)
+                ranges = []
+                for ch in x: # Autoscale each channel
+                    ranges.extend((ch.min(), ch.max()))
+                imwrite(filename, x, imagej=True,
+                        ijmetadata={'Ranges': tuple(ranges)})
+
     @viewer.bind_key('r')
     def reload(viewer):
         print('Reloading human and machine annotations')
@@ -131,7 +163,3 @@ with napari.gui_qt():
         viewer.layers['Human labels'].refresh()
         viewer.layers['Rand. forest labels'].refresh()
         viewer.layers['Neural net labels'].refresh()
-        
-
-
-        
