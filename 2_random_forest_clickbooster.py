@@ -99,7 +99,7 @@ def train_and_predict():
     print("Training a random forest classifier with",
           flattened_features.shape[0], "annotated pixels\nand",
           flattened_features.shape[1], "features calculated per pixel... ")
-    clf = RandomForestClassifier(n_estimators=100)
+    clf = RandomForestClassifier(n_estimators=100, n_jobs=-1)
     clf = clf.fit(flattened_features, flattened_labels)
     print("Done training.\n")
 
@@ -137,4 +137,5 @@ while True: # Process images every time input dir images change
         train_and_predict()
         last_mtimes = mtimes
         print("Waiting for modified input images in", input_dir, "...")
+        print("Press 'r' to reload annotations")
     time.sleep(0.1)
