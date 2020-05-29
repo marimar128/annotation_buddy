@@ -155,6 +155,8 @@ with napari.gui_qt():
                     ranges.extend((ch.min(), ch.max()))
                 imwrite(filename, x, imagej=True,
                         ijmetadata={'Ranges': tuple(ranges)})
+        print("Saved all images without human annotations from",
+              "annotate_me.tif. Press 'R' to view predictions.")
 
     @viewer.bind_key('r')
     def reload(viewer):
@@ -163,3 +165,16 @@ with napari.gui_qt():
         viewer.layers['Human labels'].refresh()
         viewer.layers['Rand. forest labels'].refresh()
         viewer.layers['Neural net labels'].refresh()
+
+    @viewer.bind_key('x')
+    def remove_empty_human_annotations(viewer):
+        print('Deleting all empty human annotations')
+        for t in range(data_with_labels.shape[0]):
+            for z in range(data_with_labels.shape[1]):
+                tif_name = 't%06i_z%06i.tif'%(t, z)
+                # Load human-generated labels:
+                human_labels_path = human_labels_dir / tif_name
+                if human_labels_path.is_file():
+                    human_labels = imread(str(human_labels_path))[-1, :, :]
+                    if not np.any(human_labels):
+                        human_labels_path.unlink()
