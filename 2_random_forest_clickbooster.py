@@ -88,7 +88,8 @@ def train_and_predict():
     # This step is a potential memory-hog:
     flattened_features = np.concatenate(flattened_features)
     flattened_labels = np.concatenate(flattened_labels)
-    if len(np.unique(flattened_labels)) < 2:
+    assert len(np.unique(flattened_labels)) > 0, "Annotate at least 1 pixel"
+    if len(np.unique(flattened_labels)) == 1:
         print('*'*10, "WARNING", '*'*10)
         print("Only", len(np.unique(flattened_labels)),
               "unique label(s) are currently annotated.")
@@ -127,7 +128,8 @@ def train_and_predict():
                 ijmetadata={'Ranges': tuple(ranges)})
     print("\nDone calculating and saving.\n")
 
-last_mtimes = None
+print("Waiting for human annotated images...")
+last_mtimes = []
 while True: # Process images every time input dir images change
     mtimes = [os.stat(x).st_mtime for x in input_dir.iterdir()
               if x.suffix == '.tif']
