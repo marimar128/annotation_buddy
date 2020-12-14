@@ -97,7 +97,7 @@ with napari.gui_qt():
     
     @viewer.bind_key('s')
     def save_slice(viewer):
-        t, z = viewer.dims.point[0], viewer.dims.point[1]
+        t, z = int(viewer.dims.point[0]), int(viewer.dims.point[1])
         # Save the human-annotated labels from the current slice
         filename = human_labels_dir / ('t%06i_z%06i.tif'%(t, z))
         x = data_with_labels[t, z, :-2, :, :]

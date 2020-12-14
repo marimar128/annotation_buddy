@@ -6,6 +6,7 @@ from pathlib import Path
 import numpy as np
 from scipy import ndimage as ndi
 from sklearn.ensemble import RandomForestClassifier
+from pickle import dump as pickledump
 from tifffile import imread, imwrite
 
 # Set input/output behavior
@@ -103,6 +104,9 @@ def train_and_predict():
     clf = RandomForestClassifier(n_estimators=100, n_jobs=-1)
     clf = clf.fit(flattened_features, flattened_labels)
     print("Done training.\n")
+    
+    with open(output_dir / 'forest.pickled', 'wb') as f:
+        pickledump(clf, f)
 
     print("Loading images, re-calculating 'features', and saving predictions.",
           end='')
