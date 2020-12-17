@@ -1,6 +1,7 @@
 # Python standard library
 import os
 import time
+from sys import argv
 from pathlib import Path
 # Third-party libraries, installable via pip
 import numpy as np
@@ -10,9 +11,14 @@ from pickle import dump as pickledump
 from tifffile import imread, imwrite
 
 # Set input/output behavior
-input_dir = Path('./1_human_annotations')
-output_dir = Path('./2_random_forest_annotations')
-debug_output_dir = Path('./random_forest_intermediate_images')
+if len(argv) > 1:
+    base_dir = Path(argv[1]).with_suffix('')
+else:
+    base_dir = Path('.')
+    
+input_dir = base_dir / '1_human_annotations'
+output_dir = base_dir / '2_random_forest_annotations'
+debug_output_dir = base_dir / './random_forest_intermediate_images'
 probability_threshold = 0.6 # Only annotate where you're confident
 save_debug_imgs = True
 

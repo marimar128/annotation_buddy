@@ -1,4 +1,5 @@
 #Python standard library
+from sys import argv
 from pathlib import Path
 # Third-party libraries, installable via pip
 import numpy as np
@@ -7,8 +8,16 @@ from tifffile import imread, imwrite, TiffFile
 import napari
 
 # Set input/output behavior
-data_dir = Path.cwd() # The current working directory
-data_filename = data_dir / 'annotate_me.tif'
+if len(argv) > 1:
+    data_filename = Path(argv[1])
+    assert data_filename.exists(), 'Cannot find target %s'%(data_filename)
+    data_dir = Path(data_filename.stem)
+    if not data_dir.exists():
+        data_dir.mkdir()
+else:
+    data_dir = Path.cwd() # The current working directory
+    data_filename = data_dir / 'annotate_me.tif'
+
 human_labels_dir = data_dir / '1_human_annotations'
 rf_labels_dir = data_dir / '2_random_forest_annotations'
 nn_labels_dir = data_dir / '3_neural_network_annotations'
