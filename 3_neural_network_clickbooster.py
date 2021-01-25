@@ -1,4 +1,5 @@
 # Python standard library
+from sys import argv
 from pathlib import Path
 from random import shuffle
 # Third-party libraries, installable via pip
@@ -15,9 +16,15 @@ assert torch.cuda.is_available(), 'No GPU available for pytorch.'
 print(' done.')
 
 # Set input/output behavior
-input_dir = Path('./2_random_forest_annotations')
-output_dir = Path('./3_neural_network_annotations')
-other_output_dir = Path('./neural_network_intermediate_files')
+if len(argv) > 1:
+    base_dir = Path(argv[1]).with_suffix('')
+else:
+    base_dir = Path('.')
+    
+
+input_dir = base_dir / './2_random_forest_annotations'
+output_dir = base_dir / './3_neural_network_annotations'
+other_output_dir = base_dir / './neural_network_intermediate_files'
 saved_state_path = other_output_dir / 'neural_network_state.pt'
 save_debug_imgs = True
 max_label = 3
