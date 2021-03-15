@@ -74,6 +74,8 @@ with napari.gui_qt():
                                  name='Image ch %i'%i)
         layer.selected = False
         layer.blending = 'additive'
+        layer.contrast_limits = (data_with_labels[:, :, i, :, :].min(),
+                                 data_with_labels[:, :, i, :, :].max())
         if i in range(4):
             layer.colormap = ('gray', 'red', 'green', 'blue')[i]
     viewer.add_labels(data_with_labels[:, :, -1, :, :],
